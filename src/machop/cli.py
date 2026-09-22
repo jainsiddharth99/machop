@@ -301,13 +301,36 @@ async def run(args: argparse.Namespace) -> int:
         else:
             backend = resolve_backend(args.tunnel)
             print(f"  Opening secure tunnel via {backend}…", file=sys.stderr, flush=True)
-            url = await until_stopped(
-                tunnel.start(
-                    local_port=args.port,
-                    on_url=lambda address: show(address, live=False),
-                ),
-                stop_event,
-            )
+            try:
+                url = await until_stopped(
+                    tunnel.start(
+                        local_port=args.port,
+                        on_url=lambda address: show(address, live=False),
+                    ),
+                    stop_event,
+                )
+            except TunnelError as exc:
+                # `auto` means "give me a tunnel", not "give me cloudflared
+                # and fail if it is having a bad day". localhost.run needs
+                # nothing installed, so there is always somewhere to go.
+                if not should_fall_back(args.tunnel, backend):
+                    raise
+                print(
+                    f"  {backend} did not come up ({exc});\n"
+                    f"  falling back to localhost.run…",
+                    file=sys.stderr, flush=True,
+                )
+                await tunnel.stop()
+                tunnel = TunnelSupervisor(
+                    create_tunnel("localhost.run"), on_url_change=announce_url
+                )
+                url = await until_stopped(
+                    tunnel.start(
+                        local_port=args.port,
+                        on_url=lambda address: show(address, live=False),
+                    ),
+                    stop_event,
+                )
             show(url, live=True)
             print("  The address is live.\n", file=sys.stderr, flush=True)
         url = viewer_url(url, args.prefer)
@@ -334,6 +357,17 @@ async def run(args: argparse.Namespace) -> int:
         await source.stop()
         controller.release_all()
     return exit_code
+
+
+def should_fall_back(requested: str, backend: str) -> bool:
+    """Whether a failed tunnel should be retried on localhost.run.
+
+    Only for `auto`, which means "give me a tunnel" rather than "give me
+    cloudflared and fail if it is having a bad day". An explicitly named
+    backend is a decision, and silently substituting another one would hide
+    exactly the thing the user asked to control.
+    """
+    return requested == "auto" and backend != "localhost.run"
 
 
 class _Interrupted(Exception):

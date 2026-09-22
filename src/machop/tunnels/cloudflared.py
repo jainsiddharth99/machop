@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import contextlib
 import logging
 import re
@@ -150,17 +151,33 @@ class CloudflaredTunnel(Tunnel):
         return False
 
     async def _read_until_ready(self) -> str:
-        """Return only once the URL is known AND the edge has registered."""
+        """Return only once the URL is known AND the edge has registered.
+
+        The tail of cloudflared's own output goes into the error. Reporting
+        only the exit status tells the user nothing they can act on, and
+        cloudflared is perfectly explicit about rate limits and network
+        problems when anyone bothers to read it.
+        """
         assert self._process is not None and self._process.stdout is not None
         url: str | None = None
+        recent: collections.deque[str] = collections.deque(maxlen=6)
         while True:
             line = await self._process.stdout.readline()
             if not line:
                 code = await self._process.wait()
-                raise TunnelError(f"cloudflared exited with status {code}")
+                detail = " / ".join(
+                    re.sub(r"^\S+Z\s+(ERR|WRN|INF)\s+", "", t)
+                    for t in recent
+                    if t
+                )
+                raise TunnelError(
+                    f"cloudflared exited with status {code}"
+                    + (f": {detail}" if detail else "")
+                )
             text = line.decode("utf-8", "replace").strip()
             if text:
                 logger.debug("cloudflared: %s", text)
+                recent.append(text)
             if url is None:
                 match = URL_PATTERN.search(text)
                 if match:

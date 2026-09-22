@@ -24,24 +24,14 @@ pipx install git+https://github.com/jainsiddharth99/machop.git
 machop
 ```
 
-Once it is on PyPI that becomes `pipx install machop`.
+Needs **Python 3.10 or newer** and macOS 13+. If you do not have `pipx`,
+`brew install pipx`.
 
-Needs **Python 3.10 or newer** (3.14 is fine) and macOS 13+. `pipx` is the
-right tool for a command-line program: it puts Machop in its own environment,
-so it cannot collide with whatever your projects have installed. If you do not
-have it, `brew install pipx`. Plain `pip install` works too, into whatever
-environment is active.
+macOS will ask for **Screen Recording** and **Accessibility** the first time.
+The first run is slow while macOS warms its framework cache; every run after
+is under a second.
 
-Two things worth knowing:
-
-- **The first run is slow** - twenty seconds or so while macOS warms its
-  framework cache. Every run after it is under a second. It has not hung.
-- macOS will ask for **Screen Recording** and **Accessibility**. Grants are per
-  binary, so reinstalling somewhere else asks again. Machop checks both at
-  startup and names whichever is missing.
-
-To update later: `pipx upgrade machop`, or
-`pipx install --force git+https://github.com/jainsiddharth99/machop.git`.
+Update later with `pipx upgrade machop`.
 
 It prints a URL and a six-digit code. Open the URL anywhere, type the code.
 
@@ -224,10 +214,6 @@ The suite negotiates real WebRTC sessions against real screen capture, runs
 a live encrypted relay, and checks decoded pixels rather than packet counts.
 Tests that need a real display are skipped automatically on build machines,
 so run the full suite on a Mac before opening a pull request.
-
-## Releasing
-
-See [docs/releasing.md](docs/releasing.md).
 
 ## Licence
 

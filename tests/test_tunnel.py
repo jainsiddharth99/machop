@@ -334,3 +334,44 @@ async def test_the_address_is_announced_before_it_answers(monkeypatch):
         "announced https://x.trycloudflare.com",
         "reachable",
     ], order
+
+
+def test_auto_falls_back_but_an_explicit_choice_is_respected():
+    """`auto` means "give me a tunnel". A named backend is a decision, and
+    quietly substituting another one hides what the user asked to control."""
+    from machop.cli import should_fall_back
+
+    assert should_fall_back("auto", "cloudflared") is True
+    assert should_fall_back("auto", "ngrok") is True
+    assert should_fall_back("auto", "localhost.run") is False
+    assert should_fall_back("cloudflared", "cloudflared") is False
+    assert should_fall_back("ngrok", "ngrok") is False
+
+
+async def test_a_dead_cloudflared_reports_what_it_actually_said():
+    """"exited with status 1" is untriageable. cloudflared is explicit about
+    rate limits and network problems; the tail of its output goes in."""
+    from machop.tunnels.cloudflared import CloudflaredTunnel
+
+    tunnel = CloudflaredTunnel()
+
+    class Stdout:
+        lines = [
+            b"2026-09-22T16:04:26Z INF Requesting new quick Tunnel...\n",
+            b"2026-09-22T16:04:27Z ERR failed to request quick Tunnel: 429 Too Many Requests\n",
+            b"",
+        ]
+
+        async def readline(self):
+            return self.lines.pop(0)
+
+    class Proc:
+        stdout = Stdout()
+        returncode = 1
+
+        async def wait(self):
+            return 1
+
+    tunnel._process = Proc()
+    with pytest.raises(TunnelError, match="429 Too Many Requests"):
+        await tunnel._read_until_ready()
