@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test tests/web/
+      - run: node --test tests/web/*.test.mjs
 
   package:
     name: Package

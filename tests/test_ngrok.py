@@ -199,6 +199,7 @@ def _parsed(argv, monkeypatch):
     return captured["args"]
 
 
+@pytest.mark.macos
 def test_ngrok_domain_implies_the_ngrok_backend(monkeypatch):
     """Making the user also remember --tunnel ngrok is just a way to get a confusing error from whichever backend `auto` happened to pick."""
     args = _parsed(["--ngrok-domain", "kite.ngrok-free.app"], monkeypatch)
@@ -206,6 +207,7 @@ def test_ngrok_domain_implies_the_ngrok_backend(monkeypatch):
     assert args.ngrok_domain == "kite.ngrok-free.app"
 
 
+@pytest.mark.macos
 def test_an_explicit_backend_still_wins(monkeypatch):
     args = _parsed(
         ["--ngrok-domain", "kite.ngrok-free.app", "--tunnel", "cloudflared"], monkeypatch
@@ -213,12 +215,14 @@ def test_an_explicit_backend_still_wins(monkeypatch):
     assert args.tunnel == "cloudflared"
 
 
+@pytest.mark.macos
 def test_no_domain_leaves_the_backend_on_auto(monkeypatch):
     args = _parsed([], monkeypatch)
     assert args.tunnel == "auto"
     assert args.ngrok_domain is None
 
 
+@pytest.mark.macos
 def test_cloudflare_tunnel_implies_its_backend(monkeypatch):
     args = _parsed(["--cloudflare-tunnel", "machop",
                     "--cloudflare-hostname", "mac.example.com"], monkeypatch)
@@ -226,6 +230,7 @@ def test_cloudflare_tunnel_implies_its_backend(monkeypatch):
     assert args.cloudflare_hostname == "mac.example.com"
 
 
+@pytest.mark.macos
 def test_an_explicit_backend_beats_the_cloudflare_implication(monkeypatch):
     args = _parsed(["--cloudflare-tunnel", "machop",
                     "--tunnel", "cloudflared"], monkeypatch)

@@ -27,32 +27,62 @@ release notes**.
 
 ## 3. Publish to PyPI
 
-One-time: an account with 2FA, then an API token at
-[pypi.org/manage/account/token](https://pypi.org/manage/account/token), saved
-to `~/.pypirc`:
+### One-time: accounts and tokens
+
+TestPyPI is a **separate site with a separate account and a separate token**.
+Register on both:
+
+- [pypi.org/account/register](https://pypi.org/account/register)
+- [test.pypi.org/account/register](https://test.pypi.org/account/register)
+
+Enable 2FA on each, then create an API token on each
+(`Account settings → API tokens`). Put both in `~/.pypirc`:
 
 ```ini
+[distutils]
+  index-servers =
+    pypi
+    testpypi
+
 [pypi]
   username = __token__
-  password = pypi-YOUR-TOKEN
+  password = pypi-YOUR-REAL-PYPI-TOKEN
+
+[testpypi]
+  repository = https://test.pypi.org/legacy/
+  username = __token__
+  password = pypi-YOUR-TESTPYPI-TOKEN
 ```
 
-Every release:
+```bash
+chmod 600 ~/.pypirc
+```
+
+Without the `[testpypi]` section, `twine upload --repository testpypi` stops
+and asks for a token at the terminal. That prompt is the symptom of a missing
+section, not of a bad token.
+
+("This environment is not supported for trusted publishing" is only twine
+noting that trusted publishing needs CI. Harmless when uploading by hand.)
+
+### Every release
 
 ```bash
-rm -rf dist build
+rm -rf dist build src/*.egg-info
 python -m build
 python -m twine check dist/*
+python -m twine upload --repository testpypi dist/*
 python -m twine upload dist/*
 ```
 
 **A version number can never be reused on PyPI**, even after deleting it. A
-bad upload costs you that number permanently, so do the first one against
-TestPyPI:
+bad upload costs you that number permanently, which is the whole reason for
+the TestPyPI step. Install from TestPyPI to confirm before the real upload -
+the extra index is needed because TestPyPI does not carry the dependencies:
 
 ```bash
-python -m twine upload --repository testpypi dist/*
-pipx install --index-url https://test.pypi.org/simple/ --pip-args="--extra-index-url https://pypi.org/simple/" machop
+pipx install --index-url https://test.pypi.org/simple/ \
+  --pip-args="--extra-index-url https://pypi.org/simple/" machop
 ```
 
 ## 4. Check it from a clean machine's point of view

@@ -1,3 +1,4 @@
+import importlib.util
 import os
 
 import pytest
@@ -30,6 +31,12 @@ def pytest_collection_modifyitems(config, items):
     Screen Recording or Accessibility, so they are skipped there and must be
     run on a real Mac before merging.
     """
+    if importlib.util.find_spec("Quartz") is None:
+        no_frameworks = pytest.mark.skip(reason="needs the macOS frameworks")
+        for item in items:
+            if "macos" in item.keywords:
+                item.add_marker(no_frameworks)
+
     if not os.environ.get("CI"):
         return
     skip = pytest.mark.skip(reason="needs a real display and Screen Recording permission")

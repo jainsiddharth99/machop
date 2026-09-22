@@ -203,7 +203,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -U pip
 pip install -e ".[dev]"
 pytest
-node --test tests/web/
+node --test tests/web/*.test.mjs
 ```
 
 The `pip install -U pip` is not cosmetic: editable installs from a

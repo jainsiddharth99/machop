@@ -79,6 +79,7 @@ def test_ctrl_c_is_a_single_button():
     assert "sendCombo" in APP_JS
 
 
+@pytest.mark.macos
 def test_toolbar_keys_are_all_mappable():
     """A button that sends an unmapped code does nothing, silently."""
     import re
@@ -172,6 +173,7 @@ def test_three_finger_swipes_map_to_system_gestures():
     assert "t: 'g'" in APP_JS
 
 
+@pytest.mark.macos
 def test_swipe_targets_exist_on_the_mac_side():
     import re
 
@@ -201,6 +203,7 @@ def test_browser_storage_access_is_guarded():
     assert "try {" in head and "catch {}" in head
 
 
+@pytest.mark.macos
 def test_chord_keys_are_all_mappable():
     import re
 
@@ -301,6 +304,7 @@ def test_the_two_halves_of_the_handshake_agree_on_their_kdf_labels():
     )
 
 
+@pytest.mark.macos
 def test_the_session_cookie_name_matches_the_server():
     from machop.server import SESSION_COOKIE
 

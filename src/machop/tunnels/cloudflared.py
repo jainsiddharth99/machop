@@ -229,15 +229,15 @@ class NamedCloudflaredTunnel(CloudflaredTunnel):
         self.hostname = hostname
 
     async def start(self, local_port: int, on_url=None) -> str:
-        if shutil.which("cloudflared") is None:
-            raise TunnelError(
-                "`cloudflared` is not installed. Install it with "
-                "`brew install cloudflared`"
-            )
         if not self.tunnel or not self.hostname:
             raise TunnelError(
                 "A named tunnel needs both --cloudflare-tunnel and "
                 "--cloudflare-hostname"
+            )
+        if shutil.which("cloudflared") is None:
+            raise TunnelError(
+                "`cloudflared` is not installed. Install it with "
+                "`brew install cloudflared`"
             )
         self._process = await asyncio.create_subprocess_exec(
             "cloudflared",
