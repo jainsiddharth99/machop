@@ -39,7 +39,7 @@ class NgrokTunnel(Tunnel):
         self._process: asyncio.subprocess.Process | None = None
         self._drain_task: asyncio.Task | None = None
 
-    async def start(self, local_port: int) -> str:
+    async def start(self, local_port: int, on_url=None) -> str:
         if shutil.which("ngrok") is None:
             raise TunnelError(
                 "`ngrok` is not installed. Install it with `brew install ngrok`, "

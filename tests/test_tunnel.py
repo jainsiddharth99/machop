@@ -236,3 +236,101 @@ async def test_losing_the_process_sets_the_lost_event(tmp_path, restore_path):
         await asyncio.wait_for(tunnel.lost.wait(), timeout=10)
     finally:
         await tunnel.stop()
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def json(self, content_type=None):
+        return self._payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _FakeSession:
+    def __init__(self, answers):
+        self._answers = list(answers)
+        self.queries = 0
+
+    def get(self, *args, **kwargs):
+        self.queries += 1
+        nxt = self._answers.pop(0) if self._answers else {}
+        if isinstance(nxt, Exception):
+            raise nxt
+        return _FakeResponse(nxt)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+async def test_dns_is_polled_until_the_record_exists(monkeypatch):
+    """The record does not exist when cloudflared prints the address -
+    measured at eleven seconds between the two."""
+    import aiohttp
+
+    from machop.tunnels.cloudflared import CloudflaredTunnel
+
+    session = _FakeSession([{}, {}, {"Answer": [{"data": "198.51.100.7"}]}])
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: session)
+    monkeypatch.setattr("machop.tunnels.cloudflared.DOH_INTERVAL_SECONDS", 0)
+
+    assert await CloudflaredTunnel()._wait_for_dns("x.trycloudflare.com") is True
+    assert session.queries == 3
+
+
+async def test_a_blocked_doh_endpoint_falls_back_instead_of_hanging(monkeypatch):
+    """On a captive portal DNS-over-HTTPS is unreachable. That must degrade
+    to the old fixed wait, not stall the whole startup."""
+    import aiohttp
+
+    from machop.tunnels.cloudflared import CloudflaredTunnel
+
+    session = _FakeSession([OSError("no route to host")])
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: session)
+
+    assert await CloudflaredTunnel()._wait_for_dns("x.trycloudflare.com") is False
+
+
+async def test_the_address_is_announced_before_it_answers(monkeypatch):
+    """The whole point: the code and URL are useful immediately, and DNS
+    publication is roughly ten seconds of otherwise blank terminal."""
+    from machop.tunnels.cloudflared import CloudflaredTunnel
+
+    tunnel = CloudflaredTunnel()
+    order = []
+
+    async def fake_read():
+        order.append("url known")
+        return "https://x.trycloudflare.com"
+
+    async def fake_reachable(url):
+        order.append("reachable")
+
+    monkeypatch.setattr("shutil.which", lambda _name: "/usr/local/bin/cloudflared")
+
+    class _Proc:
+        stdout = None
+        returncode = None
+
+    async def fake_exec(*a, **k):
+        return _Proc()
+
+    monkeypatch.setattr("asyncio.create_subprocess_exec", fake_exec)
+    monkeypatch.setattr(tunnel, "_read_until_ready", fake_read)
+    monkeypatch.setattr(tunnel, "_wait_until_reachable", fake_reachable)
+    monkeypatch.setattr(tunnel, "_drain", lambda: asyncio.sleep(0))
+
+    await tunnel.start(1234, on_url=lambda u: order.append(f"announced {u}"))
+    assert order == [
+        "url known",
+        "announced https://x.trycloudflare.com",
+        "reachable",
+    ], order

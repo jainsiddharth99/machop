@@ -32,7 +32,7 @@ class LocalhostRunTunnel(Tunnel):
         self._process: asyncio.subprocess.Process | None = None
         self._drain_task: asyncio.Task | None = None
 
-    async def start(self, local_port: int) -> str:
+    async def start(self, local_port: int, on_url=None) -> str:
         if self._process is not None:
             raise TunnelError("Tunnel already running")
         if shutil.which("ssh") is None:

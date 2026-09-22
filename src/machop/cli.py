@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import contextlib
 import logging
+import os
 import signal
 import sys
 
@@ -237,33 +238,79 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     loop = asyncio.get_running_loop()
+    interrupts = 0
+
+    def request_stop() -> None:
+        """First Ctrl-C asks nicely; a second one stops arguing.
+
+        Whatever else is skipped on the way out, the power assertions are
+        released and the tunnel child is killed: a leaked assertion keeps
+        this Mac awake indefinitely, and an orphaned cloudflared keeps a
+        tunnel open to a server that has gone.
+        """
+        nonlocal interrupts
+        interrupts += 1
+        stop_event.set()
+        if interrupts >= 2:
+            print("\n  Stopping now.", file=sys.stderr, flush=True)
+            power.release_all()
+            tunnel.kill_now()
+            os._exit(130)
+
     for signame in (signal.SIGINT, signal.SIGTERM):
         with contextlib.suppress(NotImplementedError):
-            loop.add_signal_handler(signame, stop_event.set)
+            loop.add_signal_handler(signame, request_stop)
 
     exit_code = 0
     try:
-        if args.no_tunnel:
-            url = f"http://127.0.0.1:{args.port}/"
-        else:
-            backend = resolve_backend(args.tunnel)
-            print(f"  Opening secure tunnel via {backend}…", file=sys.stderr, flush=True)
-            url = await tunnel.start(local_port=args.port)
-        url = viewer_url(url, args.prefer)
+        announced = False
+
+        def show(address: str, live: bool) -> None:
+            """Print the banner as soon as the address exists, not when it
+            starts working. A quick Cloudflare tunnel spends about ten
+            seconds waiting for DNS, and the code is useful immediately."""
+            nonlocal announced
+            if announced:
+                return
+            announced = True
+            print(
+                _banner(
+                    viewer_url(address, args.prefer), pin, geometry, capture_size,
+                    args.view_only, relay_note,
+                    "never (--no-audio)" if args.no_audio
+                    else "on request (the speaker button in the viewer)",
+                ),
+                flush=True,
+            )
+            if not live:
+                print(
+                    "  The address is still being published in DNS; it will "
+                    "start\n  answering in a few seconds.\n",
+                    file=sys.stderr, flush=True,
+                )
+
         relay_note = (
             "disabled (peer-to-peer only)" if args.no_relay
             else "encrypted relay straight away (--prefer relay)"
             if args.prefer == "relay"
             else "encrypted relay if a direct connection does not come up"
         )
-        print(
-            _banner(
-                url, pin, geometry, capture_size, args.view_only, relay_note,
-                "never (--no-audio)" if args.no_audio
-                else "on request (the speaker button in the viewer)",
-            ),
-            flush=True,
-        )
+        if args.no_tunnel:
+            url = f"http://127.0.0.1:{args.port}/"
+            show(url, live=True)
+        else:
+            backend = resolve_backend(args.tunnel)
+            print(f"  Opening secure tunnel via {backend}…", file=sys.stderr, flush=True)
+            url = await until_stopped(
+                tunnel.start(
+                    local_port=args.port,
+                    on_url=lambda address: show(address, live=False),
+                ),
+                stop_event,
+            )
+            show(url, live=True)
+            print("  The address is live.\n", file=sys.stderr, flush=True)
+        url = viewer_url(url, args.prefer)
         if topic is not None:
             print(
                 f"    Alerts    subscribe at https://ntfy.sh/{topic}\n",
@@ -273,6 +320,8 @@ async def run(args: argparse.Namespace) -> int:
             print(f"  ! {warning}", file=sys.stderr, flush=True)
         print("", file=sys.stderr, flush=True)
         await stop_event.wait()
+    except _Interrupted:
+        exit_code = 130
     except TunnelError as exc:
         print(f"\n  Could not open the tunnel: {exc}\n", file=sys.stderr)
         exit_code = 1
@@ -287,6 +336,35 @@ async def run(args: argparse.Namespace) -> int:
     return exit_code
 
 
+class _Interrupted(Exception):
+    """Ctrl-C arrived while the tool was still starting up."""
+
+
+async def until_stopped(awaitable, stop_event: asyncio.Event):
+    """Await something, but abandon it the moment Ctrl-C is pressed.
+
+    `loop.add_signal_handler` REPLACES the default SIGINT behaviour, so
+    Ctrl-C stops raising KeyboardInterrupt and only sets an event. Anything
+    awaited during startup therefore has to race that event, or the process
+    is deaf to Ctrl-C until startup finishes - which, while a quick tunnel
+    waits on DNS, meant holding Ctrl-C down and eventually killing the
+    terminal.
+    """
+    task = asyncio.ensure_future(awaitable)
+    waiter = asyncio.ensure_future(stop_event.wait())
+    try:
+        await asyncio.wait({task, waiter}, return_when=asyncio.FIRST_COMPLETED)
+        if not task.done():
+            raise _Interrupted
+        return task.result()
+    finally:
+        for pending in (task, waiter):
+            if not pending.done():
+                pending.cancel()
+                with contextlib.suppress(BaseException):
+                    await pending
+
+
 def viewer_url(url: str, prefer: str) -> str:
     """The address to hand the user, given how they want to connect."""
     if prefer != "relay":
@@ -298,6 +376,13 @@ def viewer_url(url: str, prefer: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if sys.platform != "darwin":
+        print(
+            "Machop captures a Mac's screen, so it only runs on macOS.\n"
+            f"This is {sys.platform}.",
+            file=sys.stderr,
+        )
+        return 1
     if args.ngrok_domain and args.tunnel == "auto":
         args.tunnel = "ngrok"
     if args.cloudflare_tunnel and args.tunnel == "auto":

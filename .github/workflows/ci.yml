@@ -60,6 +60,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: No unreplaced placeholders
+        run: |
+          if grep -rnE '\b(OWNER|YOURNAME)\b' README.md pyproject.toml; then
+            echo "::error::A template placeholder is still in the metadata."
+            echo "Every README image and every project URL would 404."
+            exit 1
+          fi
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

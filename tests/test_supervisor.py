@@ -18,7 +18,7 @@ class FakeTunnel(Tunnel):
         super().__init__()
         self.stopped = False
 
-    async def start(self, local_port: int) -> str:
+    async def start(self, local_port: int, on_url=None) -> str:
         if FakeTunnel.fail_next > 0:
             FakeTunnel.fail_next -= 1
             raise TunnelError("simulated failure")
@@ -113,3 +113,45 @@ async def test_stop_is_idempotent():
 
 async def test_stop_without_start_is_safe():
     await TunnelSupervisor(FakeTunnel).stop()
+
+
+async def test_the_supervisor_passes_the_early_url_callback_through():
+    """The banner is printed from this callback. A supervisor that quietly
+    dropped it would leave the terminal blank for the ten seconds a quick
+    tunnel spends waiting on DNS, which is the whole problem it solves."""
+    seen = []
+
+    class Recording(FakeTunnel):
+        async def start(self, local_port: int, on_url=None) -> str:
+            if on_url is not None:
+                on_url("https://early.example")
+            return await super().start(local_port)
+
+    FakeTunnel.instances = 0
+    supervisor = TunnelSupervisor(Recording)
+    await supervisor.start(1234, on_url=seen.append)
+    await supervisor.stop()
+    assert seen == ["https://early.example"]
+
+
+def test_kill_now_reaches_the_child_without_an_event_loop():
+    """Called from a signal handler on the way to os._exit, where there is
+    no loop left to await stop() on."""
+    killed = []
+
+    class Child:
+        returncode = None
+
+        def kill(self):
+            killed.append(True)
+
+    tunnel = FakeTunnel()
+    tunnel._process = Child()
+    supervisor = TunnelSupervisor(lambda: tunnel)
+    supervisor._tunnel = tunnel
+    supervisor.kill_now()
+    assert killed == [True]
+
+
+def test_kill_now_is_safe_when_nothing_is_running():
+    TunnelSupervisor(FakeTunnel).kill_now()

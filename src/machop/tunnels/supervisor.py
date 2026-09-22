@@ -33,11 +33,17 @@ class TunnelSupervisor:
     def public_url(self) -> str | None:
         return self._tunnel.public_url if self._tunnel is not None else None
 
-    async def start(self, local_port: int) -> str:
+    def kill_now(self) -> None:
+        """Best-effort synchronous kill, for a forced exit."""
+        if self._tunnel is not None:
+            with contextlib.suppress(Exception):
+                self._tunnel.kill_now()
+
+    async def start(self, local_port: int, on_url=None) -> str:
         """First connection."""
         self._local_port = local_port
         self._tunnel = self._factory()
-        url = await self._tunnel.start(local_port)
+        url = await self._tunnel.start(local_port, on_url)
         self._watcher = asyncio.create_task(self._watch(), name="tunnel-watch")
         return url
 
