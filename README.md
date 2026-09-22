@@ -20,18 +20,28 @@ the house, watch it finish from your phone and fix it if it breaks.
 </p>
 
 ```bash
-pipx install machop
+pipx install git+https://github.com/jainsiddharth99/machop.git
 machop
 ```
 
-Needs **Python 3.10 or newer** and macOS 13+. `pipx` is the right tool for a
-command-line program: it puts Machop in its own environment, so it cannot
-collide with whatever your projects have installed. If you do not have it,
-`brew install pipx`. Plain `pip install machop` works too, into whatever
+Once it is on PyPI that becomes `pipx install machop`.
+
+Needs **Python 3.10 or newer** (3.14 is fine) and macOS 13+. `pipx` is the
+right tool for a command-line program: it puts Machop in its own environment,
+so it cannot collide with whatever your projects have installed. If you do not
+have it, `brew install pipx`. Plain `pip install` works too, into whatever
 environment is active.
 
-If `pipx` says it is already installed, `pipx upgrade machop` gets the new
-version, or `pipx install --force machop` reinstalls from scratch.
+Two things worth knowing:
+
+- **The first run is slow** - twenty seconds or so while macOS warms its
+  framework cache. Every run after it is under a second. It has not hung.
+- macOS will ask for **Screen Recording** and **Accessibility**. Grants are per
+  binary, so reinstalling somewhere else asks again. Machop checks both at
+  startup and names whichever is missing.
+
+To update later: `pipx upgrade machop`, or
+`pipx install --force git+https://github.com/jainsiddharth99/machop.git`.
 
 It prints a URL and a six-digit code. Open the URL anywhere, type the code.
 
