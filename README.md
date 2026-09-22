@@ -20,19 +20,18 @@ the house, watch it finish from your phone and fix it if it breaks.
 </p>
 
 ```bash
-brew install jainsiddharth99/tap/machop
+pipx install machop
 machop
 ```
 
-or, if you would rather have it from PyPI:
+Needs **Python 3.10 or newer** and macOS 13+. `pipx` is the right tool for a
+command-line program: it puts Machop in its own environment, so it cannot
+collide with whatever your projects have installed. If you do not have it,
+`brew install pipx`. Plain `pip install machop` works too, into whatever
+environment is active.
 
-```bash
-pipx install machop
-```
-
-(`pip install machop` works too, but `pipx` keeps it in its own environment so
-it cannot collide with whatever your projects have installed. Either way it
-needs Python 3.10 or newer.)
+If `pipx` says it is already installed, `pipx upgrade machop` gets the new
+version, or `pipx install --force machop` reinstalls from scratch.
 
 It prints a URL and a six-digit code. Open the URL anywhere, type the code.
 
@@ -200,10 +199,16 @@ at all. The reasoning is written up in
 ## Development
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -U pip
 pip install -e ".[dev]"
 pytest
 node --test tests/web/
 ```
+
+The `pip install -U pip` is not cosmetic: editable installs from a
+`pyproject.toml` need pip 21.3 or newer, and a system Python shipping an older
+one fails with "File setup.py or setup.cfg not found".
 
 The suite negotiates real WebRTC sessions against real screen capture, runs
 a live encrypted relay, and checks decoded pixels rather than packet counts.
@@ -212,8 +217,7 @@ so run the full suite on a Mac before opening a pull request.
 
 ## Releasing
 
-Tagging, PyPI and the Homebrew tap are written up in
-[docs/releasing.md](docs/releasing.md).
+See [docs/releasing.md](docs/releasing.md).
 
 ## Licence
 
