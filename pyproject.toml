@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "machop"
+version = "0.2.0"
+description = "Low-latency remote access to a Mac from any browser"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Siddharth Jain" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Environment :: Console",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "aiortc>=1.9",
+    "av>=12.0",
+    "numpy>=1.24",
+    "pyobjc-core>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-ApplicationServices>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-CoreMedia>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-ScreenCaptureKit>=10.0; sys_platform == 'darwin'",
+]
+
+[project.urls]
+Homepage = "https://github.com/OWNER/machop"
+Source = "https://github.com/OWNER/machop"
+Issues = "https://github.com/OWNER/machop/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-aiohttp>=1.0"]
+
+[project.scripts]
+machop = "machop.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["machop*"]
+
+[tool.setuptools.package-data]
+machop = ["web/*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+asyncio_mode = "auto"

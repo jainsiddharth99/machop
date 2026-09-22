@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<title>Machop</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a84ff'/%3E%3Crect x='7' y='9' width='18' height='12' rx='1.5' fill='%23fff'/%3E%3Crect x='13' y='23' width='6' height='2' rx='1' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#0b0c0e; --panel:#16181c; --line:#2a2e35; --text:#e8eaed; --muted:#9aa0a6; --accent:#0a84ff; --bad:#ff453a; --good:#32d74b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior:none; }
+  body { display:flex; align-items:center; justify-content:center; }
+
+  #gate { width:min(92vw, 360px); background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:28px 24px; text-align:center;
+    padding-top:calc(28px + env(safe-area-inset-top,0px)); }
+  #gate h1 { margin:0 0 4px; font-size:19px; font-weight:600; letter-spacing:-0.01em; }
+  #gate p { margin:0 0 20px; color:var(--muted); font-size:13px; }
+  #pin { width:100%; padding:14px; font-size:26px; text-align:center; letter-spacing:.42em;
+    text-indent:.42em; border:1px solid var(--line); border-radius:10px;
+    background:#0e1013; color:var(--text); font-variant-numeric:tabular-nums; }
+  #pin:focus { outline:none; border-color:var(--accent); }
+  #go { width:100%; margin-top:12px; padding:14px; font-size:16px; font-weight:600;
+    border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer; }
+  #go:disabled { opacity:.5; cursor:default; }
+  #msg { min-height:20px; margin-top:12px; font-size:13px; color:var(--bad); }
+  #msg.info { color:var(--muted); }
+
+  #stage { display:none; position:fixed; inset:0; background:#000; }
+  #stage.live { display:block; }
+  video, canvas { width:100%; height:100%; object-fit:contain; display:block; touch-action:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    transform-origin:center center; will-change:transform; }
+  [hidden] { display:none !important; }
+
+  #bar { position:fixed; left:0; right:0; bottom:0; display:flex; gap:6px; padding:8px;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
+    background:rgba(14,16,19,.82); backdrop-filter:blur(12px);
+    border-top:1px solid var(--line); overflow-x:auto; }
+  #bar button { flex:0 0 auto; min-width:46px; padding:9px 12px; font-size:13px; font-weight:600;
+    color:var(--text); background:#23262c; border:1px solid var(--line);
+    border-radius:8px; cursor:pointer; }
+  #bar button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #bar button.urgent { color:var(--bad); border-color:#4a2a2a; }
+  #bar .spacer { flex:1 1 auto; }
+  #stat { flex:0 0 auto; align-self:center; padding:0 10px; font-size:11px;
+    color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #stat.warn { color:#ffd60a; }
+  #stat.bad { color:var(--bad); }
+  #toast { position:fixed; left:50%; transform:translateX(-50%); bottom:64px;
+    background:rgba(28,31,36,.95); border:1px solid var(--line); color:var(--text);
+    padding:8px 14px; border-radius:8px; font-size:13px; pointer-events:none;
+    opacity:0; transition:opacity .18s; z-index:5; max-width:80vw;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #toast.show { opacity:1; }
+  #typer { position:fixed; opacity:0; pointer-events:none; width:1px; height:1px;
+    top:50%; left:50%; border:0; }
+
+  #menu { position:fixed; left:8px; right:8px; bottom:56px; z-index:4;
+    bottom:calc(56px + env(safe-area-inset-bottom,0px));
+    background:rgba(20,22,26,.97); border:1px solid var(--line); border-radius:12px;
+    padding:10px; display:flex; flex-direction:column; gap:10px;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    box-shadow:0 8px 32px rgba(0,0,0,.5); }
+  #menu .group { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  #menu .label { flex:0 0 100%; font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; }
+  #menu button { min-width:46px; padding:9px 12px; font-size:13px; font-weight:600;
+    color:var(--text); background:#23262c; border:1px solid var(--line);
+    border-radius:8px; cursor:pointer; }
+  #menu button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  #sheet { position:fixed; inset:0; z-index:6; background:rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center; padding:16px; }
+  #sheet .card { width:min(94vw,420px); background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; padding:16px; }
+  #sheet p { margin:0 0 10px; font-size:13px; color:var(--muted); }
+  #sheet textarea { width:100%; padding:10px; font-size:15px; border-radius:8px;
+    border:1px solid var(--line); background:#0e1013; color:var(--text);
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace; resize:vertical; }
+  #sheet .row { display:flex; gap:8px; margin-top:12px; }
+  #sheet .row button { flex:1; padding:12px; font-size:15px; font-weight:600;
+    border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
+  #sheet .row button.ghost { background:#23262c; color:var(--text);
+    border:1px solid var(--line); }
+</style>
+</head>
+<body>
+  <main id="gate">
+    <h1>Machop</h1>
+    <p>Enter the code shown in your Mac's terminal.</p>
+    <input id="pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+           maxlength="6" placeholder="······" aria-label="Session code">
+    <button id="go">Connect</button>
+    <div id="msg" aria-live="polite"></div>
+  </main>
+
+  <div id="stage">
+    <video id="screen" autoplay playsinline muted disablepictureinpicture></video>
+    <canvas id="canvas" hidden></canvas>
+    <input id="typer" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"
+           aria-label="Keyboard input">
+    <div id="toast" aria-live="polite"></div>
+    <nav id="bar">
+      <button data-mod="MetaLeft">cmd</button>
+      <button data-key="Tab">tab</button>
+      <button id="switch">⌘⇥</button>
+      <button data-key="Escape">esc</button>
+      <button data-combo="ControlLeft+KeyC" class="urgent">^C</button>
+      <button id="copy" title="Copy from the Mac">copy</button>
+      <button id="paste" title="Paste onto the Mac">paste</button>
+      <button id="zoom" title="Magnify">1:1</button>
+      <button id="sound" title="Play the Mac’s sound">🔊</button>
+      <button id="kb">⌨</button>
+      <button id="more" title="More keys and settings" aria-expanded="false">⋯</button>
+      <span class="spacer"></span>
+      <span id="stat"></span>
+    </nav>
+
+    <div id="menu" hidden>
+      <div class="group">
+        <span class="label">Modifiers</span>
+        <button data-mod="ControlLeft">ctrl</button>
+        <button data-mod="AltLeft">opt</button>
+        <button data-mod="ShiftLeft">shift</button>
+        <button data-chord="MetaLeft+Space">⌘␣</button>
+      </div>
+      <div class="group">
+        <span class="label">Keys</span>
+        <button data-key="ArrowUp">↑</button>
+        <button data-key="ArrowDown">↓</button>
+        <button data-key="ArrowLeft">←</button>
+        <button data-key="ArrowRight">→</button>
+        <button data-key="Enter">return</button>
+        <button data-key="Backspace">⌫</button>
+      </div>
+      <div class="group">
+        <span class="label">View</span>
+        <button id="quality" data-profile="gui">gui</button>
+        <button id="sens" title="Scroll sensitivity">2×</button>
+        <button id="full" title="Fullscreen">⛶</button>
+        <button id="select" title="Drag to select text">sel</button>
+      </div>
+    </div>
+
+    <div id="sheet" hidden>
+      <div class="card">
+        <p id="sheetMsg"></p>
+        <textarea id="sheetText" rows="4" autocapitalize="off" autocorrect="off"
+                  spellcheck="false"></textarea>
+        <div class="row">
+          <button id="sheetGo"></button>
+          <button id="sheetClose" class="ghost">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
