@@ -138,3 +138,36 @@ async def test_a_startup_that_finishes_first_returns_normally():
         return "https://example.test"
 
     assert await until_stopped(quick(), stop) == "https://example.test"
+
+
+def test_the_command_starts_without_loading_the_heavy_frameworks():
+    """Importing PyObjC, av, aiortc and numpy costs the better part of a
+    second warm, and far longer the first time macOS faults the frameworks
+    in. All of it used to happen at module scope, before argparse ran, so
+    the command printed nothing at all for as long as it took - people
+    concluded it had hung and pressed Ctrl-C mid-import.
+    """
+    import subprocess
+    import sys
+
+    probe = (
+        "import machop.cli, sys; "
+        "print(','.join(m for m in ('av','aiortc','numpy','Quartz') "
+        "if m in sys.modules))"
+    )
+    loaded = subprocess.run(
+        [sys.executable, "-c", probe], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    assert loaded == "", f"machop.cli pulls in {loaded} before it can print anything"
+
+
+def test_help_and_version_do_not_pay_for_the_whole_program():
+    """Both exit through argparse; neither needs a capture pipeline."""
+    import subprocess
+    import sys
+    import time
+
+    start = time.perf_counter()
+    subprocess.run([sys.executable, "-m", "machop", "--version"],
+                   capture_output=True, check=True)
+    assert time.perf_counter() - start < 1.0

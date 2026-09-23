@@ -11,14 +11,6 @@ import signal
 import sys
 
 from . import __version__
-from .capture import PROFILES, SwitchableSource, display_geometry, target_size
-from .ice import limit_ice_interfaces, routable_addresses
-from .media import install_tuned_encoder, tune_encoder
-from .notify import load_or_create_topic, push
-from .permissions import check_permissions, describe_missing
-from .power import PowerAssertions, startup_warnings
-from .security import SessionAuth, generate_pin
-from .server import DEFAULT_ICE_SERVERS, SignalingServer, build_controller, start_server
 from .tunnels import (
     BACKENDS,
     TunnelError,
@@ -141,6 +133,28 @@ def _banner(
 
 
 async def run(args: argparse.Namespace) -> int:
+    """Everything heavy is imported here rather than at module scope.
+
+    PyObjC, numpy, av and aiortc cost the better part of a second warm and
+    far longer the first time macOS has to fault the frameworks in - and
+    all of it happened before argparse ran, so `machop` sat completely
+    silent for as long as it took. People reasonably concluded it had hung
+    and pressed Ctrl-C, which landed mid-import.
+    """
+    from .capture import PROFILES, SwitchableSource, display_geometry, target_size
+    from .ice import limit_ice_interfaces, routable_addresses
+    from .media import install_tuned_encoder, tune_encoder
+    from .notify import load_or_create_topic, push
+    from .permissions import check_permissions, describe_missing
+    from .power import PowerAssertions, startup_warnings
+    from .security import SessionAuth, generate_pin
+    from .server import (
+        DEFAULT_ICE_SERVERS,
+        SignalingServer,
+        build_controller,
+        start_server,
+    )
+
     status = check_permissions(prompt=True)
     if not status.ok:
         print(describe_missing(status), file=sys.stderr)
@@ -428,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.verbose:
         logging.getLogger("aioice").setLevel(logging.WARNING)
         logging.getLogger("aiortc").setLevel(logging.WARNING)
+    print("  Starting up…", file=sys.stderr, flush=True)
     try:
         return asyncio.run(run(args))
     except KeyboardInterrupt:

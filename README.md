@@ -28,8 +28,9 @@ Needs **Python 3.10 or newer** and macOS 13+. If you do not have `pipx`,
 `brew install pipx`.
 
 macOS will ask for **Screen Recording** and **Accessibility** the first time.
-The first run is slow while macOS warms its framework cache; every run after
-is under a second.
+The first run after installing takes longer than the rest, while macOS faults
+in the frameworks; it prints `Starting up…` straight away so you can tell it
+is working.
 
 Update later with `pipx upgrade machop`.
 
