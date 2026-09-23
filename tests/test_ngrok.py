@@ -3,6 +3,7 @@
 import asyncio
 import os
 import stat
+import sys
 import textwrap
 
 import pytest
@@ -194,9 +195,23 @@ def _parsed(argv, monkeypatch):
         captured["args"] = args
         return 0
 
+    monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setattr(cli, "run", fake_run)
     assert cli.main(argv) == 0
     return captured["args"]
+
+
+def test_another_operating_system_is_turned_away_before_anything_starts(monkeypatch, capsys):
+    """The parser works everywhere, but there is no screen here to capture."""
+    from machop import cli
+
+    async def never(args):
+        raise AssertionError("run() should not be reached off macOS")
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(cli, "run", never)
+    assert cli.main([]) == 1
+    assert "only runs on macOS" in capsys.readouterr().err
 
 
 def test_ngrok_domain_implies_the_ngrok_backend(monkeypatch):

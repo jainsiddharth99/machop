@@ -298,8 +298,10 @@ async def run(args: argparse.Namespace) -> int:
             )
             if not live:
                 print(
-                    "  The address is still being published in DNS; it will "
-                    "start\n  answering in a few seconds.\n",
+                    "  The address is not answering yet; the tunnel provider is\n"
+                    "  still publishing it. That is usually seconds, but it can\n"
+                    "  take a minute. Wait for \"The address is live\" before you\n"
+                    "  send the link.\n",
                     file=sys.stderr, flush=True,
                 )
 
@@ -324,9 +326,6 @@ async def run(args: argparse.Namespace) -> int:
                     stop_event,
                 )
             except TunnelError as exc:
-                # `auto` means "give me a tunnel", not "give me cloudflared
-                # and fail if it is having a bad day". localhost.run needs
-                # nothing installed, so there is always somewhere to go.
                 if not should_fall_back(args.tunnel, backend):
                     raise
                 print(

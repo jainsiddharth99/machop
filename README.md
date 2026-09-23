@@ -32,7 +32,9 @@ The first run after installing takes longer than the rest, while macOS faults
 in the frameworks; it prints `Starting up…` straight away so you can tell it
 is working.
 
-Update later with `pipx upgrade machop`.
+To update, reinstall from the same URL:
+`pipx install --force git+https://github.com/jainsiddharth99/machop.git`.
+(`pipx upgrade` only checks a package index, so it will not see new commits.)
 
 It prints a URL and a six-digit code. Open the URL anywhere, type the code.
 
