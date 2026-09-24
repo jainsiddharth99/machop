@@ -4,9 +4,7 @@ Stream your Mac's screen to a phone, tablet or another computer over the
 public internet, and control it from there. One command, no account, nothing
 to install on the other device — it runs in the browser.
 
-Built for checking on a long job from somewhere else: start a deploy, leave
-the house, watch it finish from your phone and fix it if it breaks.
-
+I just built it cause i am too lazy to go to my desk for checking logs
 <p align="center">
   <img src="https://raw.githubusercontent.com/jainsiddharth99/machop/main/docs/images/demo.gif"
        alt="Starting Machop on a Mac and connecting to it from an iPhone"
